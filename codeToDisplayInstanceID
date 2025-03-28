@@ -1,0 +1,28 @@
+// The code below is added to a dashboard page on your app
+// It will write the instanceID to a text box with the ID of instanceIdText
+// Referenced in two video tutorials:
+// 1 - how to connect a wix site to n8n https://youtu.be/Rmy_7poY80U
+// 2 - how to display the instanceID of your self-hosted app on your wix site https://youtu.be/0hFOV3rkASg
+
+import wixApplication from 'wix-application';
+
+// More documentation on the getDecodedAppInstance function is here:
+// https://dev.wix.com/docs/velo/apis/wix-application/get-decoded-app-instance
+
+$w.onReady(function () {
+  wixApplication.getDecodedAppInstance()
+    .then((instance) => {
+      const instanceId = instance.instanceId;
+      const appDefId = instance.appDefId;  // Here for completeness your usecase may need it.
+      const vendorProductId = instance.vendorProductId; // Here for completeness your usecase may need it.
+
+      console.log("Decoded App Instance:", instance);
+      $w('#instanceIdText').text = `Instance ID: ${instanceId}`;
+	  // #instanceIdText is the ID of the text element on your dashboard page. 
+    })
+    .catch((error) => {
+      console.error("Failed to get app instance:", error);
+      $w('#instanceIdText').text = "Error retrieving instance info.";
+	  // #instanceIdText is the ID of the text element on your dashboard page.
+    });
+});
