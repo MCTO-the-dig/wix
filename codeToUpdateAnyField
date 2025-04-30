@@ -1,0 +1,155 @@
+// Place this code in your http-functions.js file.
+// If you're already using that file, you can integrate this function alongside your existing code.
+// This function allows you to update specific fields in a collection item
+// without affecting other existing fields.
+// ⚠️ Note: This function does *not* currently support updating image fields or rich text fields.
+// For image fields, use a separate image-specific update function.
+
+
+import { ok, badRequest } from "wix-http-functions";
+import { getSecret } from "wix-secrets-backend";
+import wixData from "wix-data";
+
+// The `isPermitted` function handles basic authorization.
+// It compares the secret key sent in the HTTP request header with a stored secret (in Wix Secrets Manager).
+// The header can use either 'authorization' or 'auth' as the key.
+// Make sure to store your secret key in Wix Secrets Manager under the name "my_secret".
+// This approach is adapted from the Wix documentation:
+// https://dev.wix.com/docs/develop-websites/articles/coding-with-velo/integrations/exposing-services/write-an-http-function
+
+async function isPermitted(headers) {
+    try {
+        const authHeader = headers.authorization || headers.auth; // Common header keys for authorization
+        const sharedAuthKey = await getSecret("my_secret"); // Replace with your secret key name
+        return authHeader === sharedAuthKey;
+    } catch (err) {
+        console.error("Error in authorization check:", err);
+        return false;
+    }
+}
+
+// This is the main function that processes the update request.
+// The exact URL depends on your site's domain setup.
+// For example, if you have a custom domain, your Make.com HTTP module URL will be:
+// https://yourdomain.com/_functions/updateItemField
+// The "post_" prefix in the function name indicates that this function uses the POST method.
+// See Documentation for other domain setups:
+// https://dev.wix.com/docs/velo/velo-only-apis/wix-http-functions/wix-http-function-request/base-url
+
+
+export async function post_updateItemField(request) {
+    const headers = request.headers;
+
+    // Check if the request is authorrised and keys are correct and match
+    if (!(await isPermitted(headers))) {
+        const options = {
+            body: {
+                error: "Not authorized",
+            },
+            headers: {
+                "Content-Type": "application/json",
+            },
+        };
+        return badRequest(options);
+    }
+
+// 🛠️ Special Field Prefixes
+// This function supports a few custom prefixes to make updating different field types easier:
+
+// 📅 `date_` — For Date Fields:
+// Format your update keys like this: "date_myDateField": "2024-05-01"
+// This will automatically convert the string into a JavaScript Date object.
+
+// ✅ `safebool_` — For Boolean (true/false) Fields:
+// Accepts various truthy values and converts them to actual booleans.
+// Examples:
+//   "safebool_yourBoolField": 1,
+//   "safebool_yourBoolField": "1",
+//   "safebool_yourBoolField": "true",
+//   "safebool_yourBoolField": true
+
+// 🔗 `refs_` — For Multi-Reference Fields:
+// Allows you to set references by passing an array of referenced item IDs.
+// Example:
+//   "refs_yourMultireferenceField": ["id1", "id2", "id3"]
+// These will be applied using `replaceReferences` after the main update.
+
+
+    try {
+        const body = await request.body.json();
+        const { collectionName, itemId, updates } = body;
+
+        if (!collectionName || !itemId || !updates) {
+            throw new Error("Missing required fields: collectionName, itemId, or updates");
+        }
+
+        // Fetch the existing item
+        const existingItem = await wixData.get(collectionName, itemId, { suppressAuth: true });
+        if (!existingItem) {
+            throw new Error(`Item with ID ${itemId} not found in collection ${collectionName}`);
+        }
+
+        const multiRefUpdates = [];
+
+        // Sanitize prefixed fields
+        const cleanedUpdates = Object.entries(updates).reduce((acc, [key, value]) => {
+            if (key.startsWith("date_")) {
+                const realKey = key.replace("date_", "");
+                acc[realKey] = new Date(value);
+            } else if (key.startsWith("refs_")) {
+                // Save for replaceReferences later
+                const realKey = key.replace("refs_", "");
+                if (Array.isArray(value)) {
+                    multiRefUpdates.push({
+                        fieldName: realKey,
+                        ids: value,
+                    });
+                }
+                // Don't add to acc — replaceReferences will handle it
+            } else if (key.startsWith("safebool_")) {
+                const realKey = key.replace("safebool_", "");
+                acc[realKey] =
+                    value === true ||
+                    value === "true" ||
+                    value === 1 ||
+                    value === "1";
+            } else {
+                acc[key] = value;
+            }
+            return acc;
+        }, {});
+
+        // Merge with existing item
+        const updatedItem = { ...existingItem, ...cleanedUpdates };
+
+        // Update standard fields
+        await wixData.update(collectionName, updatedItem, { suppressAuth: true });
+
+        // Handle multi-reference fields using replaceReferences
+        for (const ref of multiRefUpdates) {
+            await wixData.replaceReferences(collectionName, ref.fieldName, itemId, ref.ids, { suppressAuth: true });
+        }
+
+        // Respond with success
+        const options = {
+            body: {
+                success: true
+            },
+            headers: {
+                "Content-Type": "application/json",
+            },
+        };
+        return ok(options);
+    } catch (err) {
+        console.error("Error updating item:", err);
+        const options = {
+            body: {
+                error: err.message,
+            },
+            headers: {
+                "Content-Type": "application/json",
+            },
+        };
+        return badRequest(options);
+    }
+}
