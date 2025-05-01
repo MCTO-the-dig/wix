@@ -2,6 +2,7 @@
 // If you're already using that file, you can integrate this function alongside your existing code.
 // This function allows you to update specific fields in a Wix in a collection item
 // without affecting other existing fields.
+// Supporting YouTube: https://youtu.be/PZvbsIbrmV0
 // ⚠️ Note: This function does *not* currently support updating image fields or rich text fields.
 // For image fields, use a separate image-specific update function.
 
