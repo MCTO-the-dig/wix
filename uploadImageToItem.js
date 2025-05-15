@@ -1,12 +1,16 @@
 // This function allows you to push images into an image field of a Wix collection
 // using a public image URL. The image is uploaded into the Wix Media Manager
 // and stored natively, just like images uploaded directly from the Wix Editor.
+// .js extension was added to the file for readability.
+// YouTube video https://youtu.be/2KqxsvSidSg
 
+
+// Import relevant libraries needed
 import { ok, badRequest } from "wix-http-functions"; // Enables HTTP response formatting
 import { getSecret } from "wix-secrets-backend"; // Securely retrieve stored secret keys
 import { mediaManager } from "wix-media-backend"; // API for uploading files to the Wix Media Manager
 
-// Helper function to verify the request is authorized
+// Helper function to verify the request is authorised
 // It checks the request headers for a key that matches the one saved in Wix Secrets Manager
 async function isPermitted(headers) {
     try {
