@@ -3,6 +3,7 @@
 // and stored natively, just like images uploaded directly from the Wix Editor.
 // .js extension was added to the file for readability.
 // YouTube video https://youtu.be/2KqxsvSidSg
+// See https://github.com/MCTO-the-dig/wix/blob/main/codeToUpdateAnyField for the header authorisation function
 
 
 // Import relevant libraries needed
@@ -112,7 +113,9 @@ function getMimeType(fileName) {
     return map[ext] || 'image/jpeg'; // Default to JPEG if unknown
 }
 
-// Place this code inside your `backend/events.js` file in Wix
+// ************************************************************//
+// Place this code inside your `backend/events.js` file in Wix //
+// ************************************************************//
 
 import wixData from 'wix-data'; // Used to interact with your site's collections (databases)
 
