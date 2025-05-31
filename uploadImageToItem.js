@@ -117,35 +117,38 @@ function getMimeType(fileName) {
 // Place this code inside your `backend/events.js` file in Wix //
 // ************************************************************//
 
-import wixData from 'wix-data'; // Used to interact with your site's collections (databases)
+import wixData from 'wix-data';
 
-// This event is triggered when a file has been uploaded into Wix Media Manager
+//This function performs the upload, as we have to wait
+// until the file is uploaded
+// improved the context handler so it only runs when needed
+
 export function wixMediaManager_onFileUploaded(event) {
-    const { context, fileInfo } = event; // Extract upload context and file details
+    const { context, fileInfo } = event;
 
-    const { collectionName, itemId, fieldName } = context; // These were passed in the original upload context
+    // Ensure context exists before destructuring
+    if (context?.collectionName && context?.itemId && context?.fieldName && fileInfo?.fileUrl) {
+        const { collectionName, itemId, fieldName } = context;
 
-    // Make sure all required data exists before proceeding
-    if (collectionName && itemId && fieldName && fileInfo?.fileUrl) {
         const imageObj = {
             type: "image",
-            src: fileInfo.fileUrl // This is the URL of the uploaded image in your Media Manager
+            src: fileInfo.fileUrl
         };
 
-        // Fetch the database item and update its image field with the new image URL
         wixData.get(collectionName, itemId, { suppressAuth: true })
             .then(item => {
-                item[fieldName] = fileInfo.fileUrl; // Set the image field to the uploaded file's URL
-                console.log(fileInfo, fileInfo.fileUrl); // Debug log
-                return wixData.update(collectionName, item, { suppressAuth: true }); // Save changes
+                item[fieldName] = fileInfo.fileUrl;
+                console.log(fileInfo, fileInfo.fileUrl);
+                return wixData.update(collectionName, item, { suppressAuth: true });
             })
             .then(() => {
                 console.log(`Image field "${fieldName}" updated for item ${itemId} in ${collectionName}`);
             })
             .catch(err => {
-                console.error("Failed to update image field on item:", err); // Handle error
+                console.error("Failed to update image field on item:", err);
             });
+
     } else {
-        console.warn("Missing context or fileUrl in upload event:", event); // Log if any required data is missing
+        console.info("onFileUploaded skipped: Missing context or fileUrl", { context, fileInfo });
     }
 }
